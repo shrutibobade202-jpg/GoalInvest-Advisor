@@ -1,4 +1,4 @@
-```javascript
+
 const API_BASE_URL = "https://goalinvest-advisor.onrender.com";
 
 // AI Assistant
@@ -12,73 +12,51 @@ export async function chatWithAI(message) {
   });
 
   if (!response.ok) {
-    throw new Error("Failed to get AI response");
+    const errorText = await response.text();
+    throw new Error(`Failed to get AI response: ${errorText}`);
   }
 
-  return await response.json();
+  return response.json();
 }
 
-// Goal Planner: Calculate monthly savings
-export async function calculateGoal(data) {
+// Goal Calculator
+export async function calculateGoal(goal, target_amount, months) {
   const response = await fetch(`${API_BASE_URL}/calculate-goal`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      goal,
+      target_amount: Number(target_amount),
+      months: Number(months),
+    }),
   });
 
   if (!response.ok) {
     throw new Error("Failed to calculate goal");
   }
 
-  return await response.json();
+  return response.json();
 }
 
-// Goal Planner: Get goal advice
-export async function getGoalAdvice(data) {
+// Goal Advice
+export async function getGoalAdvice(goal, target_amount, months) {
   const response = await fetch(`${API_BASE_URL}/goal-advice`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      goal,
+      target_amount: Number(target_amount),
+      months: Number(months),
+    }),
   });
 
   if (!response.ok) {
     throw new Error("Failed to get goal advice");
   }
 
-  return await response.json();
-}
-
-// Mutual Funds
-export async function getMutualFunds(
-  category = "",
-  risk_level = "",
-  search = ""
-) {
-  const params = new URLSearchParams();
-
-  if (category) {
-    params.append("category", category);
-  }
-
-  if (risk_level) {
-    params.append("risk_level", risk_level);
-  }
-
-  if (search) {
-    params.append("search", search);
-  }
-
-  const response = await fetch(
-    `${API_BASE_URL}/mutual-funds?${params.toString()}`
-  );
-
-  if (!response.ok) {
-    throw new Error("Failed to load mutual funds");
-  }
-
-  return await response.json();
+  return response.json();
 }
