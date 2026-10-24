@@ -20,42 +20,54 @@ export async function chatWithAI(message) {
 }
 
 // Goal Calculator
-export async function calculateGoal(goal, target_amount, months) {
+export async function calculateGoal(data, target_amount, months) {
+  const payload =
+    typeof data === "object" && data !== null
+      ? data
+      : { goal: data, target_amount, months };
+
   const response = await fetch(`${API_BASE_URL}/calculate-goal`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      goal,
-      target_amount: Number(target_amount),
-      months: Number(months),
+      goal: payload.goal,
+      target_amount: Number(payload.target_amount),
+      months: Number(payload.months),
     }),
   });
 
   if (!response.ok) {
-    throw new Error("Failed to calculate goal");
+    const errorText = await response.text();
+    throw new Error(`Failed to calculate goal: ${errorText}`);
   }
 
   return response.json();
 }
 
 // Goal Advice
-export async function getGoalAdvice(goal, target_amount, months) {
+export async function getGoalAdvice(data, target_amount, months) {
+  const payload =
+    typeof data === "object" && data !== null
+      ? data
+      : { goal: data, target_amount, months };
+
   const response = await fetch(`${API_BASE_URL}/goal-advice`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      goal,
-      target_amount: Number(target_amount),
-      months: Number(months),
+      goal: payload.goal,
+      target_amount: Number(payload.target_amount),
+      months: Number(payload.months),
     }),
   });
 
   if (!response.ok) {
-    throw new Error("Failed to get goal advice");
+    const errorText = await response.text();
+    throw new Error(`Failed to get goal advice: ${errorText}`);
   }
 
   return response.json();
