@@ -1,5 +1,4 @@
 
-import math
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.encoders import jsonable_encoder
@@ -89,22 +88,26 @@ def goal_advice(data: GoalRequest):
 
 @app.post("/chat")
 def chat(data: ChatRequest):
+    print("CHAT: Request received", flush=True)
+
     try:
+        print("CHAT: Loading RAG module", flush=True)
         from rag import answer_question
 
+        print("CHAT: Calling answer_question", flush=True)
         answer, documents = answer_question(data.message)
 
-        sources = []
+        print("CHAT: Answer generated", flush=True)
 
+        sources = []
         for doc in documents:
+            metadata = doc.metadata or {}
             sources.append({
-                "source": doc.metadata.get(
+                "source": metadata.get(
                     "source_file",
-                    doc.metadata.get(
-                        "source", "Reference document"
-                    ),
+                    metadata.get("source", "Reference document"),
                 ),
-                "page": doc.metadata.get("page", "unknown"),
+                "page": metadata.get("page", "unknown"),
             })
 
         return jsonable_encoder({
@@ -113,6 +116,9 @@ def chat(data: ChatRequest):
         })
 
     except Exception as exc:
+        import traceback
+
+        traceback.print_exc()
         print(
             f"CHAT ERROR: {type(exc).__name__}: {exc}",
             flush=True,
@@ -120,8 +126,9 @@ def chat(data: ChatRequest):
 
         raise HTTPException(
             status_code=503,
-            detail="The AI service is temporarily unavailable. "
-                   "Check the backend terminal for the error.",
+            detail=(
+                f"AI service error: {type(exc).__name__}: {exc}"
+            ),
         ) from exc
 
 
@@ -154,8 +161,10 @@ def mutual_funds(
         )
         raise HTTPException(
             status_code=500,
-            detail="Mutual fund CSV dataset was not found. "
-                   "Check the dataset path.",
+            detail=(
+                "Mutual fund CSV dataset was not found. "
+                "Check the dataset path."
+            ),
         ) from exc
 
     except Exception as exc:
@@ -165,6 +174,8 @@ def mutual_funds(
         )
         raise HTTPException(
             status_code=500,
-            detail=f"Unable to load mutual fund data: "
-                   f"{type(exc).__name__}: {exc}",
+            detail=(
+                f"Unable to load mutual fund data: "
+                f"{type(exc).__name__}: {exc}"
+            ),
         ) from exc
