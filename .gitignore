@@ -1,3 +1,4 @@
+
 # Secrets and environment variables
 .env
 .env.*
@@ -24,12 +25,17 @@ dist/
 
 # Local vector databases
 chroma_db/
-backend/chroma_db/
-**/chroma_db/
+#**/chroma_db/
 
 # Local datasets and downloaded data
 backend/data/
 data/
+
+# Exclude older duplicate backend
+backend/goal-invest-advisor/
+
+# Exclude backup calculator file
+**/calculator (2).py
 
 # Logs
 *.log
@@ -57,8 +63,11 @@ Desktop.ini
 .coverage
 htmlcov/
 
-# Keep project documentation and configuration tracked
+# Preserve project documentation and dependency files
 !README.md
 !requirements.txt
 !package.json
 !package-lock.json
+
+# Preserve local Git history backup outside GitHub
+frontend/.git-backup/
