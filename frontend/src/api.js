@@ -1,5 +1,5 @@
-
-const API_BASE_URL = "https://goalinvest-advisor-project.onrender.com";
+```javascript
+const API_BASE_URL = "https://goalinvest-advisor.onrender.com";
 
 // AI Assistant
 export async function chatWithAI(message) {
@@ -8,9 +8,7 @@ export async function chatWithAI(message) {
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      message: message,
-    }),
+    body: JSON.stringify({ message }),
   });
 
   if (!response.ok) {
@@ -54,7 +52,7 @@ export async function getGoalAdvice(data) {
   return await response.json();
 }
 
-// Mutual fund dataset
+// Mutual Funds
 export async function getMutualFunds(
   category = "",
   risk_level = "",
@@ -62,9 +60,17 @@ export async function getMutualFunds(
 ) {
   const params = new URLSearchParams();
 
-  if (category) params.append("category", category);
-  if (risk_level) params.append("risk_level", risk_level);
-  if (search) params.append("search", search);
+  if (category) {
+    params.append("category", category);
+  }
+
+  if (risk_level) {
+    params.append("risk_level", risk_level);
+  }
+
+  if (search) {
+    params.append("search", search);
+  }
 
   const response = await fetch(
     `${API_BASE_URL}/mutual-funds?${params.toString()}`
