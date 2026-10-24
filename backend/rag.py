@@ -1,93 +1,109 @@
 
 from pathlib import Path
+import re
 
-from langchain_chroma import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
+import chromadb
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_DIR = BASE_DIR / "chroma_db"
 
-# Load the embedding model only when it is needed.
-_embeddings = None
 
-
-def get_embeddings():
-    global _embeddings
-
-    if _embeddings is None:
-        _embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2",
-            model_kwargs={"device": "cpu"},
-            encode_kwargs={"normalize_embeddings": True},
-        )
-
-    return _embeddings
-
-
-def get_vector_store():
-    """Load the existing ChromaDB database."""
+def get_collection():
     if not DB_DIR.exists() or not any(DB_DIR.iterdir()):
         raise RuntimeError(
-            f"ChromaDB database not found or empty at: {DB_DIR}"
+            f"ChromaDB database not found at: {DB_DIR}"
         )
 
-    return Chroma(
-        persist_directory=str(DB_DIR),
-        embedding_function=get_embeddings(),
-    )
+    client = chromadb.PersistentClient(path=str(DB_DIR))
+    collections = client.list_collections()
+
+    if not collections:
+        raise RuntimeError("No collections found in ChromaDB.")
+
+    # Use the existing collection created by your project.
+    collection = client.get_collection(collections[0].name)
+
+    if collection.count() == 0:
+        raise RuntimeError("The ChromaDB collection is empty.")
+
+    return collection
 
 
 def remove_duplicate_documents(documents):
-    """Remove duplicate or empty documents."""
     unique_documents = []
     seen = set()
 
     for doc in documents:
-        text = " ".join(doc.page_content.split()).strip()
-        metadata = doc.metadata or {}
-
+        content = " ".join(doc["content"].split()).strip()
+        metadata = doc.get("metadata") or {}
         key = (
             metadata.get("source", ""),
             metadata.get("page", ""),
-            text,
+            content,
         )
 
-        if not text or key in seen:
-            continue
-
-        seen.add(key)
-        unique_documents.append(doc)
+        if content and key not in seen:
+            seen.add(key)
+            unique_documents.append(doc)
 
     return unique_documents
 
 
 def answer_question(question: str):
-    """Retrieve relevant financial information."""
     if not question or not question.strip():
         return "Please enter a question.", []
 
-    vector_store = get_vector_store()
+    collection = get_collection()
 
-    documents = vector_store.similarity_search(
-        question.strip(),
-        k=5,
-    )
+    # Retrieve saved document text without loading a large AI model.
+    data = collection.get(include=["documents", "metadatas"])
 
-    documents = remove_duplicate_documents(documents)
+    words = set(re.findall(r"[a-zA-Z0-9]+", question.lower()))
+    stop_words = {
+        "what", "how", "why", "when", "where", "which",
+        "the", "is", "are", "a", "an", "and", "or",
+        "to", "for", "of", "in", "on", "i", "me", "my",
+        "can", "you", "please", "explain", "tell"
+    }
+    words -= stop_words
 
-    documents = [
-        doc for doc in documents
-        if len(doc.page_content.strip()) >= 60
-    ][:3]
+    matches = []
 
-    if not documents:
+    for index, content in enumerate(data.get("documents") or []):
+        if not content or len(content.strip()) < 40:
+            continue
+
+        metadata_list = data.get("metadatas") or []
+        metadata = (
+            metadata_list[index]
+            if index < len(metadata_list) and metadata_list[index]
+            else {}
+        )
+
+        document_words = set(
+            re.findall(r"[a-zA-Z0-9]+", content.lower())
+        )
+        score = len(words & document_words)
+
+        if score > 0:
+            matches.append({
+                "content": content,
+                "metadata": metadata,
+                "score": score,
+            })
+
+    matches.sort(key=lambda item: item["score"], reverse=True)
+    matches = remove_duplicate_documents(matches[:10])
+    matches = matches[:3]
+
+    if not matches:
         return (
-            "I couldn't find relevant information in the "
-            "available financial documents. Please try another question."
+            "I couldn't find relevant information in the available "
+            "financial documents. Please try another question."
         ), []
 
     context = "\n\n".join(
-        doc.page_content.strip() for doc in documents
+        item["content"].strip() for item in matches
     )
 
     answer = (
@@ -97,36 +113,24 @@ def answer_question(question: str):
         "not personalized financial advice."
     )
 
+    documents = []
+
+    for item in matches:
+        metadata = item["metadata"]
+        documents.append({
+            "page_content": item["content"],
+            "metadata": metadata,
+        })
+
     return answer, documents
 
 
 def retrieve_context(question: str, k: int = 3):
-    """Retrieve relevant documents without generating an answer."""
-    if not question or not question.strip():
-        return []
-
-    vector_store = get_vector_store()
-
-    documents = vector_store.similarity_search(
-        question.strip(),
-        k=k,
-    )
-
-    return remove_duplicate_documents(documents)
+    answer, documents = answer_question(question)
+    return documents[:k]
 
 
 if __name__ == "__main__":
-    store = get_vector_store()
-
-    results = store.similarity_search(
-        "What is a mutual fund?",
-        k=5,
-    )
-
-    results = remove_duplicate_documents(results)
-
-    for i, doc in enumerate(results, start=1):
-        print(f"\n--- RESULT {i} ---")
-        print("SOURCE:", doc.metadata.get("source"))
-        print("PAGE:", doc.metadata.get("page"))
-        print(doc.page_content[:1000])
+    answer, sources = answer_question("What is a mutual fund?")
+    print(answer)
+    print("Sources found:", len(sources))

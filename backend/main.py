@@ -100,12 +100,20 @@ def chat(data: ChatRequest):
         print("CHAT: Answer generated", flush=True)
 
         sources = []
+
         for doc in documents:
-            metadata = doc.metadata or {}
+            if isinstance(doc, dict):
+                metadata = doc.get("metadata") or {}
+            else:
+                metadata = doc.metadata or {}
+
             sources.append({
                 "source": metadata.get(
                     "source_file",
-                    metadata.get("source", "Reference document"),
+                    metadata.get(
+                        "source",
+                        "Reference document"
+                    ),
                 ),
                 "page": metadata.get("page", "unknown"),
             })
@@ -119,6 +127,7 @@ def chat(data: ChatRequest):
         import traceback
 
         traceback.print_exc()
+
         print(
             f"CHAT ERROR: {type(exc).__name__}: {exc}",
             flush=True,
@@ -127,7 +136,8 @@ def chat(data: ChatRequest):
         raise HTTPException(
             status_code=503,
             detail=(
-                f"AI service error: {type(exc).__name__}: {exc}"
+                f"AI service error: "
+                f"{type(exc).__name__}: {exc}"
             ),
         ) from exc
 
@@ -159,6 +169,7 @@ def mutual_funds(
             f"MUTUAL FUNDS ERROR: {type(exc).__name__}: {exc}",
             flush=True,
         )
+
         raise HTTPException(
             status_code=500,
             detail=(
@@ -172,6 +183,7 @@ def mutual_funds(
             f"MUTUAL FUNDS ERROR: {type(exc).__name__}: {exc}",
             flush=True,
         )
+
         raise HTTPException(
             status_code=500,
             detail=(
